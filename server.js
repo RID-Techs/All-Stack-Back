@@ -13,6 +13,7 @@ const path = require("path");
 const All_Routes = require("./Routes/index");
 const PORT = process.env.PORT || 7002;
 
+// 'http://localhost:5173'
 ConnectDB();
 app.use(cors({
     origin: 'https://all-stack-front.onrender.com',
@@ -23,7 +24,7 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(cookieParser());
 
-app.set("trust proxy", 1);
+// app.set("trust proxy", 1);
 app.use(session({
     secret: process.env.Session_Secret,
     resave: false,
@@ -32,7 +33,7 @@ app.use(session({
         maxAge: 1000 * 60 * 60 * 24,
         httpOnly: true,
         secure: true,
-        sameSite: "none"
+        sameSite: "strict"
     },
     store: MongoStore.create({
         client: mongoose.connection.getClient()

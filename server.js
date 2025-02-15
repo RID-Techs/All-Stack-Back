@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 7002;
 
 ConnectDB();
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: 'https://all-stack-front.onrender.com',
     credentials: true
 }));
 

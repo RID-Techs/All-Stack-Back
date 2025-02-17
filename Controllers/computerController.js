@@ -134,11 +134,19 @@ const updateComputerById = async(req, res) => {
         const RetrieveIdComputer = await ComputerModel.findById(getId);
         if(!RetrieveIdComputer) return res.status(404).json({msg: "Compuetr not found"});
 
-        if(req.file && RetrieveIdComputer.ComputerPicture) {
-            const oldImgPath = path.join(__dirname, "../Images", path.basename(RetrieveIdComputer.ComputerPicture))
-            if(fs.existsSync(oldImgPath)) {
-                fs.unlinkSync(oldImgPath)
+         if (!req.file) {
+                console.log("File no dey ooh");
+                RetrieveIdComputer.ComputerPicture = "";
             }
+
+        if(req.file && RetrieveIdComputer.ComputerPicture) {
+              console.log("File still dey amhForLoc :", req.file);
+                       console.log("File still dey amhOnline :", RetrieveIdComputer.ComputerPicture);
+                       const oldImgPath = path.join(__dirname, "../Images", path.basename(new URL(RetrieveIdComputer.ComputerPicture).pathname))
+                       if(fs.existsSync(oldImgPath)) {
+                           fs.unlinkSync(oldImgPath)
+                           console.log("Deleting old image at path:", oldImgPath);
+                       }
         }
             if(Object.keys(body).length > 0){
                 Object.assign(RetrieveIdComputer, body);

@@ -12,11 +12,11 @@ const ConnectDB = require("./Config/DB_Connect");
 const path = require("path");
 const All_Routes = require("./Routes/index");
 const PORT = process.env.PORT || 7002;
+const FrontURL = process.env.NODE_ENV === "production" ? process.env.PROD_Front_URL : process.env.LOCAL_Front_URL;
 
-// 'http://localhost:5173'
 ConnectDB();
 app.use(cors({
-    origin: 'https://all-stack-front.onrender.com',
+    origin: FrontURL,
     credentials: true
 }));
 
@@ -32,8 +32,8 @@ app.use(session({
     cookie: {
         maxAge: 1000 * 60 * 60 * 24,
         httpOnly: true,
-        secure: true,
-        sameSite: "none"
+        secure: process.env.NODE_ENV === "production" ? true : false,
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
     },
     store: MongoStore.create({
         client: mongoose.connection.getClient()

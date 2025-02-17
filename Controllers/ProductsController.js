@@ -1,3 +1,4 @@
+const { log } = require("console");
 const MobileProducts = require("../Models/mobileProducts");
 const fs = require("fs");
 const path = require("path");
@@ -31,7 +32,7 @@ const addProduct = async(req, res) => {
         productPrice
      } = req.body;
 
-     if(!productName || !productRam || !productRam || !productRom || !productScreenType || !productDisplayResolution || !productMainCamera || !productFrontCamera || !productDualSim || !productEsim || !productMermorySlot || !productUsbType || !productOTG || !productBattery || !productWiredCharger || !productWirelessCharger || !productFingerPrint || !productPortJack || !productLoudSpeakers || !productDualSpeakers || !productStereoSpeakers || !productRange || !productAvailableDate || !productStock || !productPrice) {
+     if(!productName || !productRam || !productRom || !productScreenType || !productDisplayResolution || !productMainCamera || !productFrontCamera || !productDualSim || !productEsim || !productMermorySlot || !productUsbType || !productOTG || !productBattery || !productWiredCharger || !productWirelessCharger || !productFingerPrint || !productPortJack || !productLoudSpeakers || !productDualSpeakers || !productStereoSpeakers || !productRange || !productAvailableDate || !productStock || !productPrice) {
         return res.status(400).json({errMsg: "All field are required !"})
      }
 
@@ -75,7 +76,7 @@ const addProduct = async(req, res) => {
             productPicture : `${req.protocol}://${req.get('host')}/Images/${req.file.filename}`
         });
         await AddNewProduct.save();
-        return res.status(201).json({msg: 'Product saved successfully'});
+        return res.status(201).json({msg: 'Phone added successfully'});
         
     } catch (error) {
         console.log("Error:", error);
@@ -124,22 +125,30 @@ const updatePhoneById = async(req, res) => {
         const {productPicture, ...body} = req.body;
         const getId = req.params.id
         const RetrieveIdPhone = await MobileProducts.findById(getId);
-        if(!RetrieveIdPhone) return res.status(404).json({msg: "Phone not found"});
 
+        if(!RetrieveIdPhone) return res.status(404).json({msg: "Phone not found"});
+          if (!req.file) {
+                console.log("File no dey ooh");
+                RetrieveIdPhone.productPicture = "";
+            }
         if(req.file && RetrieveIdPhone.productPicture) {
-            const oldImgPath = path.join(__dirname, "../Images", path.basename(RetrieveIdPhone.productPicture))
+            console.log("File still dey amhForLoc :", req.file);
+            console.log("File still dey amhOnline :", RetrieveIdPhone.productPicture);
+            const oldImgPath = path.join(__dirname, "../Images", path.basename(new URL(RetrieveIdPhone.productPicture).pathname))
             if(fs.existsSync(oldImgPath)) {
                 fs.unlinkSync(oldImgPath)
+                console.log("Deleting old image at path:", oldImgPath);
             }
         }
             if(Object.keys(body).length > 0){
                 Object.assign(RetrieveIdPhone, body);
             }
+
             if(req.file){
                 RetrieveIdPhone.productPicture = `${req.protocol}://${req.get('host')}/Images/${req.file.filename}`
             }
             await RetrieveIdPhone.save();
-        return res.status(200).json({msg: "Computer added successfully !"})
+        return res.status(200).json({msg: "Phone updated successfully !"})
     } catch (error) {
         console.log("Error getting the Phone with the Id", error);
         return res.status(500).json({ error: "Internal Server" });

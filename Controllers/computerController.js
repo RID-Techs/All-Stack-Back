@@ -1,6 +1,18 @@
+const supabase = require("../Config/Supa");
 const ComputerModel = require("../Models/computerProducts");
-const fs = require("fs");
-const path = require("path");
+// const fs = require("fs");
+// const path = require("path");
+
+const MIME_TYPES = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg"
+}
+const generateFileName = (originalName, mimetype) => {
+  const name = originalName.replace(/\s+/g, "_").replace(/\.[^/.]+$/, "");
+  const extension = MIME_TYPES[mimetype];
+  return `${name}_${Date.now()}.${extension}`;
+};
 
 const addComputerFunc = async (req, res) => {
   try {
@@ -49,6 +61,14 @@ const addComputerFunc = async (req, res) => {
                   return res.status(400).json({ errMsg: 'Computer already exists' });
               }
 
+                const filename = generateFileName(req.file.originalname, req.file.mimetype);
+
+        const {data, error} = await supabase.storage
+            .from("external-files")
+            .upload(filename, req.file.buffer, {contentType: req.file.mimetype})
+
+            if (error) throw error;
+
       const addComputer = new ComputerModel({
         ComputerName,
       ComputerRam,
@@ -77,7 +97,7 @@ const addComputerFunc = async (req, res) => {
       ComputerAvailableYear,
       ComputerStock,
       ComputerPrice,
-      ComputerPicture: `${req.protocol}://${req.get('host')}/Images/${req.file.filename}`
+      ComputerPicture: `${process.env.SUPABASE_URL}/storage/v1/object/public/external-files/${filename}`
       })
       await addComputer.save();
       return res.status(201).json({msg: "Computer added successfully !"})
@@ -139,20 +159,35 @@ const updateComputerById = async(req, res) => {
                 RetrieveIdComputer.ComputerPicture = "";
             }
 
+            let imageUrl = RetrieveIdComputer.ComputerPicture;
+
         if(req.file && RetrieveIdComputer.ComputerPicture) {
               console.log("File still dey amhForLoc :", req.file);
                        console.log("File still dey amhOnline :", RetrieveIdComputer.ComputerPicture);
-                       const oldImgPath = path.join(__dirname, "../Images", path.basename(new URL(RetrieveIdComputer.ComputerPicture).pathname))
-                       if(fs.existsSync(oldImgPath)) {
-                           fs.unlinkSync(oldImgPath)
-                           console.log("Deleting old image at path:", oldImgPath);
-                       }
+                       const oldFileName = RetrieveIdComputer.ComputerPicture.split("/").pop();
+
+      if (oldFileName) {
+        const { error: deleteError } = await supabase
+          .storage
+          .from("external-files")
+          .remove([oldFileName]);
+        if (deleteError) console.error("Image delete error:", deleteError.message);
+      }
+            
+        const filename = generateFileName(req.file.originalname, req.file.mimetype);
+
+            const {data, error} = await supabase.storage
+            .from("external-files")
+            .upload(filename, req.file.buffer, {contentType: req.file.mimetype})
+            if (error) throw error;
+
+            imageUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/external-files/${filename}`;
         }
             if(Object.keys(body).length > 0){
                 Object.assign(RetrieveIdComputer, body);
             }
             if(req.file){
-                RetrieveIdComputer.ComputerPicture = `${req.protocol}://${req.get('host')}/Images/${req.file.filename}`
+                RetrieveIdComputer.ComputerPicture = imageUrl;
             }
             await RetrieveIdComputer.save();
         return res.status(200).json({ msg: "Computer added successfully !" })
@@ -168,10 +203,15 @@ const DeleteCompById = async(req, res) => {
         const RetrieveIdComputer = await ComputerModel.findById(getId);
         if(!RetrieveIdComputer) return res.status(404).json({msg: "Computer not found"});
         if(RetrieveIdComputer.ComputerPicture) {
-            const ImgPath = path.join(__dirname, "../Images", path.basename(RetrieveIdComputer.ComputerPicture))
-            if(fs.existsSync(ImgPath)) {
-                fs.unlinkSync(ImgPath)
-            }
+          const FileToRemove = RetrieveIdComputer.ComputerPicture.split("/").pop();
+
+      if (FileToRemove) {
+        const { error: deleteError } = await supabase
+          .storage
+          .from("external-files")
+          .remove([FileToRemove]);
+        if (deleteError) console.error("Image delete error:", deleteError.message);
+      }
         }
         await RetrieveIdComputer.deleteOne();
         res.status(200).json({msg: "Item Deleted successfully !"})

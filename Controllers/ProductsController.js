@@ -1,7 +1,18 @@
-const { log } = require("console");
+const supabase = require("../Config/Supa");
 const MobileProducts = require("../Models/mobileProducts");
-const fs = require("fs");
-const path = require("path");
+// const fs = require("fs");
+// const path = require("path");
+
+const MIME_TYPES = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg"
+}
+const generateFileName = (originalName, mimetype) => {
+  const name = originalName.replace(/\s+/g, "_").replace(/\.[^/.]+$/, "");
+  const extension = MIME_TYPES[mimetype];
+  return `${name}_${Date.now()}.${extension}`;
+};
 
 const addProduct = async(req, res) => {
     try {
@@ -44,9 +55,16 @@ const addProduct = async(req, res) => {
 
         if(existingProduct) {
             console.log("Product already exists");
-            
             return res.status(400).json({ errMsg: 'Product already exists' });
         }
+
+        const filename = generateFileName(req.file.originalname, req.file.mimetype);
+
+        const {data, error} = await supabase.storage
+            .from("external-files")
+            .upload(filename, req.file.buffer, {contentType: req.file.mimetype})
+
+            if (error) throw error;
 
         const AddNewProduct = new MobileProducts({
             productName,
@@ -73,7 +91,7 @@ const addProduct = async(req, res) => {
             productAvailableDate,
             productStock,
             productPrice,
-            productPicture : `${req.protocol}://${req.get('host')}/Images/${req.file.filename}`
+            productPicture : `${process.env.SUPABASE_URL}/storage/v1/object/public/external-files/${filename}`
         });
         await AddNewProduct.save();
         return res.status(201).json({msg: 'Phone added successfully'});
@@ -131,21 +149,39 @@ const updatePhoneById = async(req, res) => {
                 console.log("File no dey ooh");
                 RetrieveIdPhone.productPicture = "";
             }
+
+        let imageUrl = RetrieveIdPhone.productPicture;
+
         if(req.file && RetrieveIdPhone.productPicture) {
             console.log("File still dey amhForLoc :", req.file);
             console.log("File still dey amhOnline :", RetrieveIdPhone.productPicture);
-            const oldImgPath = path.join(__dirname, "../Images", path.basename(new URL(RetrieveIdPhone.productPicture).pathname))
-            if(fs.existsSync(oldImgPath)) {
-                fs.unlinkSync(oldImgPath)
-                console.log("Deleting old image at path:", oldImgPath);
-            }
+
+            const oldFileName = RetrieveIdPhone.productPicture.split("/").pop();
+
+      if (oldFileName) {
+        const { error: deleteError } = await supabase
+          .storage
+          .from("external-files")
+          .remove([oldFileName]);
+        if (deleteError) console.error("Image delete error:", deleteError.message);
+      }
+            
+        const filename = generateFileName(req.file.originalname, req.file.mimetype);
+
+            const {data, error} = await supabase.storage
+            .from("external-files")
+            .upload(filename, req.file.buffer, {contentType: req.file.mimetype})
+            if (error) throw error;
+
+            imageUrl = `${process.env.SUPABASE_URL}/storage/v1/object/public/external-files/${filename}`;
         }
+
             if(Object.keys(body).length > 0){
                 Object.assign(RetrieveIdPhone, body);
             }
 
             if(req.file){
-                RetrieveIdPhone.productPicture = `${req.protocol}://${req.get('host')}/Images/${req.file.filename}`
+                RetrieveIdPhone.productPicture = imageUrl;
             }
             await RetrieveIdPhone.save();
         return res.status(200).json({msg: "Phone updated successfully !"})
@@ -161,10 +197,15 @@ const DeleteById = async(req, res) => {
         const RetrieveIdPhone = await MobileProducts.findById(getId);
         if(!RetrieveIdPhone) return res.status(404).json({msg: "Phone not found"});
         if(RetrieveIdPhone.productPicture) {
-            const ImgPath = path.join(__dirname, "../Images", path.basename(RetrieveIdPhone.productPicture))
-            if(fs.existsSync(ImgPath)) {
-                fs.unlinkSync(ImgPath)
-            }
+            const FileToRemove = RetrieveIdPhone.productPicture.split("/").pop();
+
+      if (FileToRemove) {
+        const { error: deleteError } = await supabase
+          .storage
+          .from("external-files")
+          .remove([FileToRemove]);
+        if (deleteError) console.error("Image delete error:", deleteError.message);
+      }
         }
         await RetrieveIdPhone.deleteOne();
         res.status(200).json({msg: "Item Deleted successfully !"})

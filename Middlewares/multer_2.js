@@ -6,16 +6,7 @@ const MIME_TYPES = {
     "image/jpg": "jpg"
 }
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "Images");
-    },
-    filename: (req, file, cb) => {
-        const name = file.originalname.replace(/\s+/g, "_").replace(/\.[^/.]+$/, "");
-        const extension = MIME_TYPES[file.mimetype];
-        cb(null, `${name}_${Date.now()}.${extension}`);
-    }
-})
+const storage = multer.memoryStorage();
 
 module.exports = multer({
     storage,
